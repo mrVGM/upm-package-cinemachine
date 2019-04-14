@@ -261,13 +261,16 @@ namespace Cinemachine
                 if (sStandardCurves == null)
                     CreateStandardCurves();
 
+                if (enhancedBlendCurve == null)
+                    enhancedBlendCurve = new EnhancedBlendCurve();
+
                 if (m_Style == Style.Custom)
                 {
                     if (m_CustomCurve == null)
                         m_CustomCurve = AnimationCurve.EaseInOut(0f, 0f, 1, 1f);
                     if (m_AimCurve == null || m_AimCurve.keys.Length == 0)
                         m_AimCurve = sStandardCurves[(int)Style.Linear];
-                    
+
                     enhancedBlendCurve.m_MainCurve = m_CustomCurve;
                     enhancedBlendCurve.m_AimCurve = m_AimCurve;
                 }
