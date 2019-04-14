@@ -270,7 +270,7 @@ namespace Cinemachine
         /// <param name="stateB">The second state, corresponding to t=1</param>
         /// <param name="t">How much to interpolate.  Internally clamped to 0..1</param>
         /// <returns>Linearly interpolated CameraState</returns>
-        public static CameraState Lerp(CameraState stateA, CameraState stateB, float t)
+        public static CameraState Lerp(CameraState stateA, CameraState stateB, float t, CinemachineBlendDefinition.EnhancedBlendCurve blendCurve = null)
         {
             t = Mathf.Clamp01(t);
             float adjustedT = t;
@@ -335,9 +335,13 @@ namespace Cinemachine
                     adjustedT = Mathf.Abs((lens.FieldOfView - fovA) / (fovB - fovA));
                 }
 
-                // Linear interpolation of lookAt target point
+                // Interpolation of lookAt target point
+                float lookAtT = adjustedT;
+                if (blendCurve != null)
+                    lookAtT = blendCurve.m_AimCurve.Evaluate(adjustedT);
+
                 state.ReferenceLookAt = Vector3.Lerp(
-                        stateA.ReferenceLookAt, stateB.ReferenceLookAt, adjustedT);
+                        stateA.ReferenceLookAt, stateB.ReferenceLookAt, lookAtT);
             }
             
             // Raw position

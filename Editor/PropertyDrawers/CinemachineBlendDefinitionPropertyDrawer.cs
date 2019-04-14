@@ -27,14 +27,24 @@ namespace Cinemachine.Editor
             else 
             {
                 SerializedProperty curveProp = property.FindPropertyRelative(() => myClass.m_CustomCurve);
+                SerializedProperty aimCurveProp = property.FindPropertyRelative(() => myClass.m_AimCurve);
                 Rect r = rect;
                 r.width -= rect.height;
                 r.height -= 1;
+
+                r.width /= 2.0f;
+                r.width -= 1;
+
                 EditorGUI.BeginChangeCheck();
                 EditorGUI.PropertyField(r, curveProp, GUIContent.none);
+
+                r.position += (r.width + 2) * Vector2.right;
+
+                EditorGUI.PropertyField(r, aimCurveProp, GUIContent.none);
                 if (EditorGUI.EndChangeCheck())
                 {
                     curveProp.animationCurveValue = InspectorUtility.NormalizeCurve(curveProp.animationCurveValue);
+                    aimCurveProp.animationCurveValue = InspectorUtility.NormalizeCurve(aimCurveProp.animationCurveValue);
                     curveProp.serializedObject.ApplyModifiedProperties();
                 }
                 r.x += r.width; r.width = r.height; ++r.height;

@@ -19,7 +19,7 @@ namespace Cinemachine
         /// <summary>The curve that describes the way the blend transitions over time
         /// from the first camera to the second.  X-axis is normalized time (0...1) over which
         /// the blend takes place and Y axis is blend weight (0..1)</summary>
-        public AnimationCurve BlendCurve { get; set; }
+        public CinemachineBlendDefinition.EnhancedBlendCurve BlendCurve { get; set; }
 
         /// <summary>The current time relative to the start of the blend</summary>
         public float TimeInBlend { get; set; }
@@ -31,9 +31,9 @@ namespace Cinemachine
         {
             get
             {
-                if (BlendCurve == null || BlendCurve.length < 2 || IsComplete)
+                if (BlendCurve == null || ((AnimationCurve) BlendCurve).length < 2 || IsComplete)
                     return 1;
-                return Mathf.Clamp01(BlendCurve.Evaluate(TimeInBlend / Duration));
+                return Mathf.Clamp01(((AnimationCurve)BlendCurve).Evaluate(TimeInBlend / Duration));
             }
         }
 
@@ -101,7 +101,7 @@ namespace Cinemachine
         /// <param name="duration">Duration of the blend, in seconds</param>
         /// <param name="t">Current time in blend, relative to the start of the blend</param>
         public CinemachineBlend(
-            ICinemachineCamera a, ICinemachineCamera b, AnimationCurve curve, float duration, float t)
+            ICinemachineCamera a, ICinemachineCamera b, CinemachineBlendDefinition.EnhancedBlendCurve curve, float duration, float t)
         {
             CamA = a;
             CamB = b;
@@ -137,7 +137,7 @@ namespace Cinemachine
                 }
                 if (CamB == null || !CamB.IsValid)
                     return CamA.State;
-                return CameraState.Lerp(CamA.State, CamB.State, BlendWeight);
+                return CameraState.Lerp(CamA.State, CamB.State, BlendWeight, blendCurve: BlendCurve);
             }
         }
     }
@@ -148,6 +148,21 @@ namespace Cinemachine
     [DocumentationSorting(DocumentationSortingAttribute.Level.UserRef)]
     public struct CinemachineBlendDefinition
     {
+        public class EnhancedBlendCurve
+        {
+            public AnimationCurve m_MainCurve;
+            public AnimationCurve m_AimCurve;
+
+            public static implicit operator EnhancedBlendCurve(AnimationCurve curve)
+            {
+                return new EnhancedBlendCurve { m_MainCurve = curve, m_AimCurve = null };
+            }
+            public static explicit operator AnimationCurve(EnhancedBlendCurve blendCurve)
+            {
+                return blendCurve.m_MainCurve;
+            }
+        }
+        
         /// <summary>Supported predefined shapes for the blend curve.</summary>
         [DocumentationSorting(DocumentationSortingAttribute.Level.UserRef)]
         public enum Style
@@ -186,6 +201,8 @@ namespace Cinemachine
             m_Style = style;
             m_Time = time;
             m_CustomCurve = null;
+            m_AimCurve = null;
+            enhancedBlendCurve = new EnhancedBlendCurve();
         }
 
         /// <summary>
@@ -193,6 +210,9 @@ namespace Cinemachine
         /// Curve MUST be normalized, i.e. time range [0...1], value range [0...1].
         /// </summary>
         public AnimationCurve m_CustomCurve;
+        public AnimationCurve m_AimCurve;
+
+        private EnhancedBlendCurve enhancedBlendCurve;
 
         static AnimationCurve[] sStandardCurves;
         void CreateStandardCurves()
@@ -234,19 +254,29 @@ namespace Cinemachine
         /// for this camera blend. Y-axis values must be in range [0,1] (internally clamped
         /// within Blender) and time must be in range of [0, 1].
         /// </summary>
-        public AnimationCurve BlendCurve
+        public EnhancedBlendCurve BlendCurve
         {
             get
             {
+                if (sStandardCurves == null)
+                    CreateStandardCurves();
+
                 if (m_Style == Style.Custom)
                 {
                     if (m_CustomCurve == null)
                         m_CustomCurve = AnimationCurve.EaseInOut(0f, 0f, 1, 1f);
-                    return m_CustomCurve;
+                    if (m_AimCurve == null || m_AimCurve.keys.Length == 0)
+                        m_AimCurve = sStandardCurves[(int)Style.Linear];
+                    
+                    enhancedBlendCurve.m_MainCurve = m_CustomCurve;
+                    enhancedBlendCurve.m_AimCurve = m_AimCurve;
                 }
-                if (sStandardCurves == null)
-                    CreateStandardCurves();
-                return sStandardCurves[(int)m_Style];
+                else
+                {
+                    enhancedBlendCurve.m_MainCurve = sStandardCurves[(int)m_Style];
+                    enhancedBlendCurve.m_AimCurve = sStandardCurves[(int)Style.Linear];
+                }
+                return enhancedBlendCurve;
             }
         }
     }
